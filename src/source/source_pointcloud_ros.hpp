@@ -210,7 +210,7 @@ namespace robosense
 namespace lidar
 {
 
-inline sensor_msgs::msg::PointCloud2 toRosMsg(const LidarPointCloudMsg& rs_msg, const std::string& frame_id, bool send_by_rows)
+inline sensor_msgs::msg::PointCloud2 toRosMsg(const LidarPointCloudMsg& rs_msg, const std::string& frame_id, bool send_by_rows, float tai_offset)
 {
   sensor_msgs::msg::PointCloud2 ros_msg;
 
@@ -314,8 +314,9 @@ inline sensor_msgs::msg::PointCloud2 toRosMsg(const LidarPointCloudMsg& rs_msg, 
     }
   }
 
-  ros_msg.header.stamp.sec = (uint32_t)floor(rs_msg.timestamp);
-  ros_msg.header.stamp.nanosec = (uint32_t)round((rs_msg.timestamp - ros_msg.header.stamp.sec) * 1e9);
+  auto tai_compensated_timestamp = rs_msg.timestamp - tai_offset;
+  ros_msg.header.stamp.sec = (uint32_t)floor(tai_compensated_timestamp);
+  ros_msg.header.stamp.nanosec = (uint32_t)round((tai_compensated_timestamp - ros_msg.header.stamp.sec) * 1e9);
   ros_msg.header.frame_id = frame_id;
 
   return ros_msg;
@@ -334,12 +335,16 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_;
   std::string frame_id_;
   bool send_by_rows_;
+  float tai_offset_;
 };
 
 inline void DestinationPointCloudRos::init(const YAML::Node& config)
 {
   yamlRead<bool>(config["ros"], 
       "ros_send_by_rows", send_by_rows_, false);
+
+  yamlRead<float>(config["ros"],
+      "tai_offset", tai_offset_, 18.0);
 
   bool dense_points;
   yamlRead<bool>(config["driver"], "dense_points", dense_points, false);
@@ -363,7 +368,7 @@ inline void DestinationPointCloudRos::init(const YAML::Node& config)
 
 inline void DestinationPointCloudRos::sendPointCloud(const LidarPointCloudMsg& msg)
 {
-  pub_->publish(toRosMsg(msg, frame_id_, send_by_rows_));
+  pub_->publish(toRosMsg(msg, frame_id_, send_by_rows_, tai_offset_));
 }
 
 }  // namespace lidar
