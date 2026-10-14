@@ -149,6 +149,10 @@ inline void SourceDriver::init(const YAML::Node& config)
       break;
   }
 
+  // Populate frame_id from the ROS config so the diagnostic print reflects the
+  // actual ROS frame ID rather than always showing the struct default "rslidar".
+  yamlRead<std::string>(config["ros"], "ros_frame_id", driver_param.frame_id, driver_param.frame_id);
+
   driver_param.print();
 
   driver_ptr_.reset(new lidar::LidarDriver<LidarPointCloudMsg>());
